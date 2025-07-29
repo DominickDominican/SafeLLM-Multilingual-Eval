@@ -64,24 +64,28 @@ class MockClient(ModelClient):
         )
 
 
-def create_model_client(provider: str, model_name: str, api_key: Optional[str] = None) -> ModelClient:
-    """Create a model client based on provider."""
-    provider_lower = provider.lower()
+class ModelFactory:
+    """Factory for creating model clients."""
     
-    if provider_lower == "mock":
-        return MockClient(model_name)
-    else:
-        # For real providers, we'll use mock client if no API key
-        if not api_key:
-            logging.warning(f"No API key provided for {provider}, using mock client")
-            return MockClient(f"mock-{model_name}")
+    @staticmethod
+    def create_client(provider: str, model_name: str, api_key: Optional[str] = None) -> ModelClient:
+        """Create a model client based on provider."""
+        provider_lower = provider.lower()
         
-        # Here you would import and create real clients
-        # For now, fallback to mock
-        logging.warning(f"Real {provider} client not implemented yet, using mock")
-        return MockClient(f"mock-{model_name}")
-
-
-def get_available_providers() -> list:
-    """Get list of available providers."""
-    return ["mock", "openai", "anthropic", "mistral"]
+        if provider_lower == "mock":
+            return MockClient(model_name)
+        else:
+            # For real providers, we'll use mock client if no API key
+            if not api_key:
+                logging.warning(f"No API key provided for {provider}, using mock client")
+                return MockClient(f"mock-{model_name}")
+            
+            # Here you would import and create real clients
+            # For now, fallback to mock
+            logging.warning(f"Real {provider} client not implemented yet, using mock")
+            return MockClient(f"mock-{model_name}")
+    
+    @staticmethod
+    def get_available_providers() -> list:
+        """Get list of available providers."""
+        return ["mock", "openai", "anthropic", "mistral"]

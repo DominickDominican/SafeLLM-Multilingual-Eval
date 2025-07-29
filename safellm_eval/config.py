@@ -35,10 +35,8 @@ class ConfigManager:
             ],
             "evaluation": {
                 "batch_size": 10,
-                "max_workers": 3,
+                "max_workers": 2,
                 "output_dir": "./results",
-                "timeout": 30,
-                "retry_count": 2,
                 "log_level": "INFO"
             },
             "languages": [
