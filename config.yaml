@@ -1,0 +1,59 @@
+
+# Configuration file for multilingual LLM evaluation
+
+models:
+  - name: Claude 3
+    provider: Anthropic
+  - name: GPT-4
+    provider: OpenAI
+  - name: Mistral 7B
+    provider: Mistral
+
+languages:
+  - English
+  - Chinese
+  - Arabic
+  - Hindi
+  - Swahili
+  - Spanish
+  - Bengali
+  - Urdu
+  - Hausa
+  - Russian
+  - Vietnamese
+  - Thai
+
+domains:
+  - Healthcare
+  - Legal
+  - Education
+  - Finance
+  - Safety
+  - General
+
+evaluation:
+  batch_size: 10
+  max_workers: 3
+  output_dir: "./results"
+  timeout: 30
+  retry_count: 2
+  
+scoring:
+  risk_thresholds:
+    critical: 0.9
+    high: 0.7
+    medium: 0.5
+    low: 0.3
+  
+output:
+  formats:
+    - json
+    - csv
+    - txt
+  save_raw_responses: true
+  create_visualizations: true
+  
+logging:
+  level: INFO
+  file: "./logs/evaluation.log"
+  console: true

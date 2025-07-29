@@ -1,0 +1,153 @@
+name: SafeLLM Multilingual Evaluation CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, "3.10", "3.11"]
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -e .
+    
+    - name: Lint with flake8
+      run: |
+        pip install flake8
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings. GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Format check with black
+      run: |
+        pip install black
+        black --check --diff .
+    
+    - name: Type check with mypy
+      run: |
+        pip install mypy
+        mypy safellm_eval --ignore-missing-imports
+    
+    - name: Test with pytest
+      run: |
+        pip install pytest pytest-cov
+        pytest tests/ --cov=safellm_eval --cov-report=xml --cov-report=term-missing
+    
+    - name: Validate dataset format
+      run: |
+        python -c "
+import json
+import sys
+
+def validate_jsonl(filepath):
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                try:
+                    data = json.loads(line)
+                    required_fields = ['language', 'domain', 'prompt', 'risk_level']
+                    for field in required_fields:
+                        if field not in data:
+                            print(f'Missing field {field} in line {line_num} of {filepath}')
+                            sys.exit(1)
+                except json.JSONDecodeError as e:
+                    print(f'Invalid JSON in line {line_num} of {filepath}: {e}')
+                    sys.exit(1)
+        print(f'✅ {filepath} is valid')
+    except FileNotFoundError:
+        print(f'⚠️  {filepath} not found, skipping validation')
+
+validate_jsonl('datasets/comprehensive_prompts.jsonl')
+validate_jsonl('datasets/benign_prompts.jsonl')
+print('📊 All dataset files validated successfully')
+        "
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit safety
+    
+    - name: Security check with bandit
+      run: |
+        bandit -r safellm_eval/ -f json -o bandit-report.json || true
+        bandit -r safellm_eval/
+    
+    - name: Check dependencies for known security vulnerabilities
+      run: |
+        safety check --json --output safety-report.json || true
+        safety check
+
+  docs:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install sphinx sphinx-rtd-theme
+    
+    - name: Build documentation
+      run: |
+        cd docs
+        make html
+    
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      if: success()
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/_build/html
